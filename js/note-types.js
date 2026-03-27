@@ -70,28 +70,103 @@ const NoteTypes = (() => {
 
   // ===== CHECKLIST =====
   function renderChecklist(div, memo) {
+    const PRIORITY_ICONS = ['', '🔴', '🟡', '🟢'];
+    const PRIORITY_LABELS = ['なし', '高', '中', '低'];
+
+    // Progress bar
+    const progressWrap = document.createElement('div');
+    progressWrap.className = 'cl-progress-wrap';
+    div.appendChild(progressWrap);
+
+    function updateProgress() {
+      const items = memo.content.items || [];
+      const total = items.length;
+      const done = items.filter(i => i.checked).length;
+      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+      progressWrap.innerHTML = `
+        <div class="cl-progress-header">
+          <span class="cl-progress-text">${done}/${total} 完了</span>
+          <span class="cl-progress-pct">${pct}%</span>
+        </div>
+        <div class="cl-progress-bar"><div class="cl-progress-fill" style="width:${pct}%"></div></div>
+      `;
+    }
+    updateProgress();
+
+    // Items container
     const itemsDiv = document.createElement('div');
     itemsDiv.className = 'checklist-items';
     div.appendChild(itemsDiv);
 
+    let dragSrcIdx = null;
+
+    function getOrderedItems() {
+      const items = memo.content.items || [];
+      if (!memo.content.showCompleted) return items.filter(i => !i.checked);
+      // Sort: unchecked first, checked at bottom
+      const unchecked = items.filter(i => !i.checked);
+      const checked = items.filter(i => i.checked);
+      return [...unchecked, ...checked];
+    }
+
     function renderItems() {
       itemsDiv.innerHTML = '';
-      const items = memo.content.items || [];
-      items.forEach((item, idx) => {
+      const ordered = getOrderedItems();
+      let hasCheckedDivider = false;
+
+      ordered.forEach((item, displayIdx) => {
+        const realIdx = memo.content.items.indexOf(item);
+
+        // Divider between active and completed
+        if (item.checked && !hasCheckedDivider && memo.content.showCompleted) {
+          hasCheckedDivider = true;
+          const divider = document.createElement('div');
+          divider.className = 'cl-completed-divider';
+          divider.innerHTML = `<span>完了した項目</span>`;
+          itemsDiv.appendChild(divider);
+        }
+
         const row = document.createElement('div');
         row.className = `checklist-item ${item.checked ? 'completed' : ''}`;
+        row.setAttribute('data-indent', item.indent || 0);
+        row.setAttribute('draggable', 'true');
+        row.dataset.realIdx = realIdx;
+
+        // Priority indicator
+        const priorityClass = item.priority > 0 ? ` cl-priority-${item.priority}` : '';
+
+        // Due date display
+        let dueDateHtml = '';
+        if (item.dueDate) {
+          const isOverdue = new Date(item.dueDate) < new Date() && !item.checked;
+          dueDateHtml = `<span class="cl-due ${isOverdue ? 'overdue' : ''}">${formatShortDate(item.dueDate)}</span>`;
+        }
+
         row.innerHTML = `
-          <button class="checklist-check ${item.checked ? 'checked' : ''}" data-idx="${idx}">
+          <button class="checklist-check ${item.checked ? 'checked' : ''}${priorityClass}">
             <span class="material-icons-round" style="font-size:16px">${item.checked ? 'check' : ''}</span>
           </button>
-          <textarea class="checklist-text" rows="1" placeholder="アイテムを入力…">${item.text}</textarea>
-          <span class="material-icons-round checklist-drag">drag_indicator</span>
+          <div class="cl-item-content">
+            <div class="cl-item-main">
+              ${item.priority > 0 ? `<span class="cl-priority-icon">${PRIORITY_ICONS[item.priority]}</span>` : ''}
+              <textarea class="checklist-text" rows="1" placeholder="アイテムを入力…">${item.text}</textarea>
+            </div>
+            ${dueDateHtml ? `<div class="cl-item-meta">${dueDateHtml}</div>` : ''}
+          </div>
+          <div class="cl-item-actions">
+            <button class="cl-more-btn icon-btn-sm"><span class="material-icons-round" style="font-size:18px">more_vert</span></button>
+            <span class="material-icons-round checklist-drag">drag_indicator</span>
+          </div>
         `;
-        const check = row.querySelector('.checklist-check');
-        check.onclick = () => {
+
+        // Check toggle
+        row.querySelector('.checklist-check').onclick = () => {
           item.checked = !item.checked;
           renderItems();
+          updateProgress();
         };
+
+        // Text input
         const textarea = row.querySelector('.checklist-text');
         textarea.oninput = () => {
           item.text = textarea.value;
@@ -100,40 +175,208 @@ const NoteTypes = (() => {
         textarea.onkeydown = (e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
-            const newItem = { id: SmartMemoDB.generateId(), text: '', checked: false };
-            memo.content.items.splice(idx + 1, 0, newItem);
+            const newItem = { id: SmartMemoDB.generateId(), text: '', checked: false, priority: 0, dueDate: '', indent: item.indent || 0 };
+            memo.content.items.splice(realIdx + 1, 0, newItem);
             renderItems();
-            const nextRow = itemsDiv.children[idx + 1];
-            if (nextRow) nextRow.querySelector('.checklist-text').focus();
+            updateProgress();
+            // Focus next
+            setTimeout(() => {
+              const rows = itemsDiv.querySelectorAll('.checklist-item');
+              for (const r of rows) {
+                if (parseInt(r.dataset.realIdx) === realIdx + 1) {
+                  r.querySelector('.checklist-text')?.focus();
+                  break;
+                }
+              }
+            }, 50);
           }
-          if (e.key === 'Backspace' && !textarea.value && items.length > 1) {
+          if (e.key === 'Tab') {
             e.preventDefault();
-            memo.content.items.splice(idx, 1);
+            if (e.shiftKey) {
+              item.indent = Math.max(0, (item.indent || 0) - 1);
+            } else {
+              item.indent = Math.min(2, (item.indent || 0) + 1);
+            }
             renderItems();
+            setTimeout(() => {
+              const rows = itemsDiv.querySelectorAll('.checklist-item');
+              for (const r of rows) {
+                if (parseInt(r.dataset.realIdx) === realIdx) {
+                  r.querySelector('.checklist-text')?.focus();
+                  break;
+                }
+              }
+            }, 50);
+          }
+          if (e.key === 'Backspace' && !textarea.value && memo.content.items.length > 1) {
+            e.preventDefault();
+            memo.content.items.splice(realIdx, 1);
+            renderItems();
+            updateProgress();
           }
         };
+
+        // More button - popup for priority/date
+        row.querySelector('.cl-more-btn').onclick = (e) => {
+          e.stopPropagation();
+          showItemMenu(row, item, realIdx);
+        };
+
+        // Drag events
+        row.addEventListener('dragstart', (e) => {
+          dragSrcIdx = realIdx;
+          row.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        row.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          row.classList.add('drag-over');
+        });
+        row.addEventListener('dragleave', () => {
+          row.classList.remove('drag-over');
+        });
+        row.addEventListener('drop', (e) => {
+          e.preventDefault();
+          row.classList.remove('drag-over');
+          const targetIdx = realIdx;
+          if (dragSrcIdx !== null && dragSrcIdx !== targetIdx) {
+            const [moved] = memo.content.items.splice(dragSrcIdx, 1);
+            memo.content.items.splice(targetIdx, 0, moved);
+            renderItems();
+          }
+          dragSrcIdx = null;
+        });
+        row.addEventListener('dragend', () => {
+          row.classList.remove('dragging');
+          dragSrcIdx = null;
+        });
+
         itemsDiv.appendChild(row);
         autoResize(textarea);
       });
     }
     renderItems();
 
-    // Actions
+    // Item context menu
+    function showItemMenu(anchorRow, item, idx) {
+      // Remove existing menu
+      document.querySelector('.cl-item-menu')?.remove();
+
+      const menu = document.createElement('div');
+      menu.className = 'cl-item-menu';
+      menu.innerHTML = `
+        <div class="cl-menu-section">
+          <span class="cl-menu-label">優先度</span>
+          <div class="cl-priority-picker">
+            ${[0,1,2,3].map(p => `<button class="cl-priority-opt ${item.priority === p ? 'active' : ''}" data-p="${p}">${p === 0 ? '⚪' : PRIORITY_ICONS[p]} ${PRIORITY_LABELS[p]}</button>`).join('')}
+          </div>
+        </div>
+        <div class="cl-menu-section">
+          <span class="cl-menu-label">期限日</span>
+          <input type="date" class="cl-date-input" value="${item.dueDate || ''}">
+        </div>
+        <div class="cl-menu-section">
+          <button class="cl-delete-item-btn">🗑️ 削除</button>
+        </div>
+      `;
+
+      menu.querySelectorAll('.cl-priority-opt').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          item.priority = parseInt(btn.dataset.p);
+          menu.remove();
+          renderItems();
+        };
+      });
+
+      menu.querySelector('.cl-date-input').onchange = (e) => {
+        item.dueDate = e.target.value;
+        menu.remove();
+        renderItems();
+      };
+
+      menu.querySelector('.cl-delete-item-btn').onclick = (e) => {
+        e.stopPropagation();
+        if (memo.content.items.length > 1) {
+          memo.content.items.splice(idx, 1);
+          menu.remove();
+          renderItems();
+          updateProgress();
+        }
+      };
+
+      anchorRow.appendChild(menu);
+
+      // Close on outside click
+      const close = (e) => {
+        if (!menu.contains(e.target)) {
+          menu.remove();
+          document.removeEventListener('click', close);
+        }
+      };
+      setTimeout(() => document.addEventListener('click', close), 10);
+    }
+
+    // Actions bar
     const actions = document.createElement('div');
     actions.className = 'checklist-actions';
     actions.innerHTML = `
+      <button class="checklist-action-btn" id="cl-add-item"><span class="material-icons-round" style="font-size:16px;vertical-align:middle">add</span> 追加</button>
       <button class="checklist-action-btn" id="cl-check-all">全て完了</button>
-      <button class="checklist-action-btn" id="cl-clear">全てクリア</button>
+      <button class="checklist-action-btn" id="cl-uncheck-all">全て未完了</button>
+      <button class="checklist-action-btn" id="cl-toggle-completed">
+        ${memo.content.showCompleted !== false ? '完了を隠す' : '完了を表示'}
+      </button>
+      <button class="checklist-action-btn" id="cl-clear">クリア</button>
     `;
     div.appendChild(actions);
+
+    actions.querySelector('#cl-add-item').onclick = () => {
+      memo.content.items.push({ id: SmartMemoDB.generateId(), text: '', checked: false, priority: 0, dueDate: '', indent: 0 });
+      renderItems();
+      updateProgress();
+      const lastRow = itemsDiv.lastElementChild;
+      if (lastRow) lastRow.querySelector('.checklist-text')?.focus();
+    };
     actions.querySelector('#cl-check-all').onclick = () => {
       memo.content.items.forEach(i => i.checked = true);
       renderItems();
+      updateProgress();
+    };
+    actions.querySelector('#cl-uncheck-all').onclick = () => {
+      memo.content.items.forEach(i => i.checked = false);
+      renderItems();
+      updateProgress();
+    };
+    actions.querySelector('#cl-toggle-completed').onclick = () => {
+      memo.content.showCompleted = !(memo.content.showCompleted !== false);
+      renderItems();
+      actions.querySelector('#cl-toggle-completed').textContent = memo.content.showCompleted ? '完了を隠す' : '完了を表示';
     };
     actions.querySelector('#cl-clear').onclick = () => {
-      memo.content.items = [{ id: SmartMemoDB.generateId(), text: '', checked: false }];
-      renderItems();
+      if (confirm('チェック済みのアイテムを削除しますか？')) {
+        memo.content.items = memo.content.items.filter(i => !i.checked);
+        if (memo.content.items.length === 0) {
+          memo.content.items = [{ id: SmartMemoDB.generateId(), text: '', checked: false, priority: 0, dueDate: '', indent: 0 }];
+        }
+        renderItems();
+        updateProgress();
+      }
     };
+  }
+
+  function formatShortDate(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = d - now;
+    const days = Math.ceil(diff / 86400000);
+    if (days === 0) return '今日';
+    if (days === 1) return '明日';
+    if (days < 0) return `${Math.abs(days)}日前`;
+    if (days <= 7) return `${days}日後`;
+    return `${d.getMonth() + 1}/${d.getDate()}`;
   }
 
   // ===== BULLET LIST =====
@@ -613,136 +856,274 @@ const NoteTypes = (() => {
 
   // ===== MINDMAP =====
   function renderMindmap(div, memo) {
+    const BRANCH_COLORS = ['#7c5cfc','#ef5350','#42a5f5','#66bb6a','#ffa726','#ab47bc','#26c6da','#ec407a','#8d6e63'];
+
     const container = document.createElement('div');
     container.className = 'mindmap-container';
     const canvas = document.createElement('canvas');
     container.appendChild(canvas);
     div.appendChild(container);
 
+    // Inline edit input (overlay)
+    const editInput = document.createElement('input');
+    editInput.className = 'mm-inline-edit';
+    editInput.style.display = 'none';
+    container.appendChild(editInput);
+
     const controls = document.createElement('div');
     controls.className = 'mindmap-controls';
     controls.innerHTML = `
       <button class="mindmap-control-btn" id="mm-add"><span class="material-icons-round" style="font-size:18px">add_circle_outline</span>追加</button>
+      <button class="mindmap-control-btn mm-delete-btn" id="mm-delete"><span class="material-icons-round" style="font-size:18px">delete_outline</span>削除</button>
+      <button class="mindmap-control-btn" id="mm-layout"><span class="material-icons-round" style="font-size:18px">account_tree</span></button>
       <button class="mindmap-control-btn" id="mm-zoom-in"><span class="material-icons-round" style="font-size:18px">zoom_in</span></button>
       <button class="mindmap-control-btn" id="mm-zoom-out"><span class="material-icons-round" style="font-size:18px">zoom_out</span></button>
     `;
     div.appendChild(controls);
 
     let selectedNodeId = 'root';
+    let layoutMode = memo.content.layoutMode || 'radial'; // radial, tree, horizontal
+    const LAYOUT_MODES = ['radial', 'tree', 'horizontal'];
+    const LAYOUT_LABELS = { radial: '放射状', tree: 'ツリー', horizontal: '横配置' };
 
     function drawMap() {
       const ctx = canvas.getContext('2d');
       const rect = container.getBoundingClientRect();
-      canvas.width = rect.width * 2;
-      canvas.height = rect.height * 2;
-      ctx.scale(2, 2);
+      const dpr = window.devicePixelRatio || 2;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, rect.width, rect.height);
 
       const nodes = memo.content.nodes || [];
       const zoom = memo.content.zoom || 1;
-      const centerX = rect.width / 2;
-      const centerY = rect.height / 2;
+      const panX = (memo.content.pan?.x || 0);
+      const panY = (memo.content.pan?.y || 0);
+      const centerX = rect.width / 2 + panX;
+      const centerY = rect.height / 2 + panY;
 
-      // Position nodes radially
       const root = nodes.find(n => n.id === 'root');
       if (!root) return;
 
-      const rootX = centerX + (root.x || 0) * zoom;
-      const rootY = centerY + (root.y || 0) * zoom;
+      const rootX = centerX;
+      const rootY = centerY;
+      root._x = rootX;
+      root._y = rootY;
 
       const children = nodes.filter(n => n.id !== 'root');
-      const angleStep = children.length > 0 ? (2 * Math.PI) / children.length : 0;
-      const radius = 120 * zoom;
+      const radius = 130 * zoom;
 
-      // Draw lines
-      ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#7c5cfc';
-      ctx.lineWidth = 2;
-      children.forEach((child, i) => {
-        const angle = angleStep * i - Math.PI / 2;
-        const cx = rootX + Math.cos(angle) * radius + (child.x || 0) * zoom;
-        const cy = rootY + Math.sin(angle) * radius + (child.y || 0) * zoom;
-        child._x = cx; child._y = cy;
+      // Layout children
+      if (layoutMode === 'radial') {
+        const angleStep = children.length > 0 ? (2 * Math.PI) / children.length : 0;
+        children.forEach((child, i) => {
+          const angle = angleStep * i - Math.PI / 2;
+          child._x = rootX + Math.cos(angle) * radius;
+          child._y = rootY + Math.sin(angle) * radius;
+          child._color = BRANCH_COLORS[i % BRANCH_COLORS.length];
+        });
+      } else if (layoutMode === 'tree') {
+        const spacingX = 90 * zoom;
+        const startX = rootX - ((children.length - 1) * spacingX) / 2;
+        children.forEach((child, i) => {
+          child._x = startX + i * spacingX;
+          child._y = rootY + 120 * zoom;
+          child._color = BRANCH_COLORS[i % BRANCH_COLORS.length];
+        });
+      } else { // horizontal
+        const spacingY = 60 * zoom;
+        const startY = rootY - ((children.length - 1) * spacingY) / 2;
+        children.forEach((child, i) => {
+          child._x = rootX + 160 * zoom;
+          child._y = startY + i * spacingY;
+          child._color = BRANCH_COLORS[i % BRANCH_COLORS.length];
+        });
+      }
+
+      // Draw bezier connections
+      children.forEach(child => {
+        ctx.strokeStyle = child._color || BRANCH_COLORS[0];
+        ctx.lineWidth = 2.5 * zoom;
         ctx.beginPath();
         ctx.moveTo(rootX, rootY);
-        ctx.lineTo(cx, cy);
+        if (layoutMode === 'horizontal') {
+          const cpx = rootX + (child._x - rootX) * 0.5;
+          ctx.bezierCurveTo(cpx, rootY, cpx, child._y, child._x, child._y);
+        } else if (layoutMode === 'tree') {
+          const cpy = rootY + (child._y - rootY) * 0.5;
+          ctx.bezierCurveTo(rootX, cpy, child._x, cpy, child._x, child._y);
+        } else {
+          const midX = (rootX + child._x) / 2;
+          const midY = (rootY + child._y) / 2;
+          ctx.quadraticCurveTo(midX + (Math.random()-0.5)*10, midY + (Math.random()-0.5)*10, child._x, child._y);
+        }
         ctx.stroke();
       });
 
-      // Draw root
-      drawNode(ctx, rootX, rootY, root.text, root.id === selectedNodeId, zoom);
+      // Draw root node
+      drawNode(ctx, rootX, rootY, root.text, root.id === selectedNodeId, zoom, '#7c5cfc', true);
 
-      // Draw children
+      // Draw child nodes
       children.forEach(child => {
-        drawNode(ctx, child._x, child._y, child.text, child.id === selectedNodeId, zoom * 0.85);
+        drawNode(ctx, child._x, child._y, child.text, child.id === selectedNodeId, zoom * 0.9, child._color, false);
       });
     }
 
-    function drawNode(ctx, x, y, text, selected, scale) {
-      const w = Math.max(60, text.length * 12 + 20) * (scale || 1);
-      const h = 32 * (scale || 1);
-      const r = 10;
-      ctx.fillStyle = selected
-        ? (getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#7c5cfc')
-        : (getComputedStyle(document.body).getPropertyValue('--surface-2').trim() || '#2a2a45');
+    function drawNode(ctx, x, y, text, selected, scale, color, isRoot) {
+      const fontSize = (isRoot ? 13 : 11.5) * scale;
+      ctx.font = `600 ${fontSize}px "Noto Sans JP", sans-serif`;
+      const textWidth = ctx.measureText(text.substring(0, 15)).width;
+      const w = Math.max(70 * scale, textWidth + 28 * scale);
+      const h = (isRoot ? 38 : 32) * scale;
+      const r = isRoot ? 14 : 10;
+
+      // Shadow
+      ctx.shadowColor = selected ? color : 'rgba(0,0,0,0.15)';
+      ctx.shadowBlur = selected ? 12 : 4;
+      ctx.shadowOffsetY = 2;
+
+      // Fill
+      ctx.fillStyle = selected ? color : (getComputedStyle(document.body).getPropertyValue('--surface-2').trim() || '#2a2a45');
       ctx.beginPath();
       ctx.roundRect(x - w / 2, y - h / 2, w, h, r);
       ctx.fill();
+
+      // Color accent bar for non-root
+      if (!isRoot && !selected) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.roundRect(x - w / 2, y - h / 2, 4, h, [r, 0, 0, r]);
+        ctx.fill();
+      }
+
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+
+      // Text
       ctx.fillStyle = selected ? '#fff' : (getComputedStyle(document.body).getPropertyValue('--text-primary').trim() || '#e8e8f0');
-      ctx.font = `${12 * (scale || 1)}px "Noto Sans JP", sans-serif`;
+      ctx.font = `600 ${fontSize}px "Noto Sans JP", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(text.substring(0, 10), x, y);
+      ctx.fillText(text.substring(0, 15), x, y);
+
+      // Store bounds for hit testing
+      const node = memo.content.nodes.find(n => n.text === text);
+      if (node) { node._w = w; node._h = h; }
     }
 
-    // Handle tap to select node
-    canvas.onclick = (e) => {
-      const rect = container.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+    function findNodeAt(px, py) {
       const nodes = memo.content.nodes || [];
-      const centerX = rect.width / 2;
-      const centerY = rect.height / 2;
-      const root = nodes.find(n => n.id === 'root');
-      const rootX = centerX + (root?.x || 0);
-      const rootY = centerY + (root?.y || 0);
-
-      // Check root
-      if (Math.abs(x - rootX) < 50 && Math.abs(y - rootY) < 20) {
-        selectedNodeId = 'root';
-        drawMap();
-        return;
-      }
-      // Check children
-      const children = nodes.filter(n => n.id !== 'root');
-      for (const child of children) {
-        if (child._x && child._y && Math.abs(x - child._x) < 50 && Math.abs(y - child._y) < 20) {
-          selectedNodeId = child.id;
-          drawMap();
-          return;
+      for (let i = nodes.length - 1; i >= 0; i--) {
+        const n = nodes[i];
+        if (n._x === undefined) continue;
+        const w = (n._w || 70) / 2;
+        const h = (n._h || 32) / 2;
+        if (px >= n._x - w && px <= n._x + w && py >= n._y - h && py <= n._y + h) {
+          return n;
         }
+      }
+      return null;
+    }
+
+    // Tap = select
+    canvas.onclick = (e) => {
+      const r = container.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      const node = findNodeAt(x, y);
+      if (node) {
+        selectedNodeId = node.id;
+        drawMap();
       }
     };
 
-    // Double tap to edit
+    // Double tap = inline edit
     canvas.ondblclick = (e) => {
       const node = memo.content.nodes.find(n => n.id === selectedNodeId);
-      if (node) {
-        const text = prompt('テキストを入力:', node.text);
-        if (text !== null) {
-          node.text = text;
-          if (node.id === 'root') memo.title = text;
-          drawMap();
+      if (!node || node._x === undefined) return;
+
+      const r = container.getBoundingClientRect();
+      editInput.style.display = 'block';
+      editInput.style.left = (node._x - 50) + 'px';
+      editInput.style.top = (node._y - 14) + 'px';
+      editInput.value = node.text;
+      editInput.focus();
+      editInput.select();
+
+      const finish = () => {
+        if (editInput.value.trim()) {
+          node.text = editInput.value.trim();
+          if (node.id === 'root') memo.title = node.text;
         }
-      }
+        editInput.style.display = 'none';
+        drawMap();
+      };
+      editInput.onblur = finish;
+      editInput.onkeydown = (ke) => {
+        if (ke.key === 'Enter') { ke.preventDefault(); finish(); }
+        if (ke.key === 'Escape') { editInput.style.display = 'none'; }
+      };
     };
 
-    // Add child node
+    // Touch: pan & pinch zoom
+    let lastTouchDist = 0;
+    let lastTouchX = 0;
+    let lastTouchY = 0;
+    let isPanning = false;
+
+    container.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        lastTouchDist = Math.hypot(
+          e.touches[1].clientX - e.touches[0].clientX,
+          e.touches[1].clientY - e.touches[0].clientY
+        );
+      } else if (e.touches.length === 1) {
+        const r = container.getBoundingClientRect();
+        const tx = e.touches[0].clientX - r.left;
+        const ty = e.touches[0].clientY - r.top;
+        const hit = findNodeAt(tx, ty);
+        if (!hit) {
+          isPanning = true;
+          lastTouchX = e.touches[0].clientX;
+          lastTouchY = e.touches[0].clientY;
+        }
+      }
+    }, { passive: false });
+
+    container.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const dist = Math.hypot(
+          e.touches[1].clientX - e.touches[0].clientX,
+          e.touches[1].clientY - e.touches[0].clientY
+        );
+        const delta = (dist - lastTouchDist) * 0.005;
+        memo.content.zoom = Math.max(0.4, Math.min(2.5, (memo.content.zoom || 1) + delta));
+        lastTouchDist = dist;
+        drawMap();
+      } else if (isPanning && e.touches.length === 1) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - lastTouchX;
+        const dy = e.touches[0].clientY - lastTouchY;
+        memo.content.pan = memo.content.pan || { x: 0, y: 0 };
+        memo.content.pan.x += dx;
+        memo.content.pan.y += dy;
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
+        drawMap();
+      }
+    }, { passive: false });
+
+    container.addEventListener('touchend', () => { isPanning = false; });
+
+    // Controls
     controls.querySelector('#mm-add').onclick = () => {
       const newNode = {
         id: SmartMemoDB.generateId(),
         text: '新しいノード',
-        x: (Math.random() - 0.5) * 40,
-        y: (Math.random() - 0.5) * 40,
+        x: 0, y: 0,
         children: []
       };
       memo.content.nodes.push(newNode);
@@ -750,14 +1131,35 @@ const NoteTypes = (() => {
       drawMap();
     };
 
+    controls.querySelector('#mm-delete').onclick = () => {
+      if (selectedNodeId === 'root') return; // Can't delete root
+      const idx = memo.content.nodes.findIndex(n => n.id === selectedNodeId);
+      if (idx > -1) {
+        memo.content.nodes.splice(idx, 1);
+        selectedNodeId = 'root';
+        drawMap();
+      }
+    };
+
+    controls.querySelector('#mm-layout').onclick = () => {
+      const currentIdx = LAYOUT_MODES.indexOf(layoutMode);
+      layoutMode = LAYOUT_MODES[(currentIdx + 1) % LAYOUT_MODES.length];
+      memo.content.layoutMode = layoutMode;
+      controls.querySelector('#mm-layout').innerHTML = `<span class="material-icons-round" style="font-size:18px">account_tree</span>${LAYOUT_LABELS[layoutMode]}`;
+      drawMap();
+    };
+
     controls.querySelector('#mm-zoom-in').onclick = () => {
-      memo.content.zoom = Math.min(2, (memo.content.zoom || 1) + 0.2);
+      memo.content.zoom = Math.min(2.5, (memo.content.zoom || 1) + 0.2);
       drawMap();
     };
     controls.querySelector('#mm-zoom-out').onclick = () => {
       memo.content.zoom = Math.max(0.4, (memo.content.zoom || 1) - 0.2);
       drawMap();
     };
+
+    // Update layout button label
+    controls.querySelector('#mm-layout').innerHTML = `<span class="material-icons-round" style="font-size:18px">account_tree</span>${LAYOUT_LABELS[layoutMode]}`;
 
     // Initial draw
     setTimeout(drawMap, 100);

@@ -50,7 +50,7 @@ const MemoManager = (() => {
       case 'free':
         return { html: '' };
       case 'checklist':
-        return { items: [{ id: SmartMemoDB.generateId(), text: '', checked: false }] };
+        return { items: [{ id: SmartMemoDB.generateId(), text: '', checked: false, priority: 0, dueDate: '', indent: 0 }], showCompleted: true };
       case 'bullet':
         return { items: [{ id: SmartMemoDB.generateId(), text: '', indent: 0 }] };
       case 'photo':
@@ -243,8 +243,12 @@ const MemoManager = (() => {
       case 'free':
       case 'journal':
         return stripHtml(content.html || '').substring(0, 100);
-      case 'checklist':
-        return (content.items || []).map(i => `${i.checked ? '✓' : '○'} ${i.text}`).join(', ').substring(0, 100);
+      case 'checklist': {
+        const items = content.items || [];
+        const done = items.filter(i => i.checked).length;
+        const pct = items.length > 0 ? Math.round((done / items.length) * 100) : 0;
+        return `${done}/${items.length} 完了 (${pct}%) ` + items.filter(i => !i.checked).map(i => i.text).join(', ').substring(0, 60);
+      }
       case 'bullet':
         return (content.items || []).map(i => i.text).join(', ').substring(0, 100);
       case 'photo':
