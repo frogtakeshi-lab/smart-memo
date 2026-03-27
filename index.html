@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Smart Memo - スマホ特化のメモアプリ。12種のノートスタイルで自由にメモを取ろう。">
+  <title>Smart Memo</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+  <link rel="stylesheet" href="css/themes.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/note-types.css">
+  <link rel="stylesheet" href="css/memo-editor.css">
+</head>
+<body data-theme="dark">
+
+  <!-- ===== SPLASH SCREEN ===== -->
+  <div id="splash-screen" class="splash">
+    <div class="splash-content">
+      <span class="splash-icon material-icons-round">edit_note</span>
+      <h1 class="splash-title">Smart Memo</h1>
+    </div>
+  </div>
+
+  <!-- ===== APP SHELL ===== -->
+  <div id="app" class="app">
+
+    <!-- ===== TOP BAR ===== -->
+    <header id="top-bar" class="top-bar">
+      <div class="top-bar-left">
+        <button id="btn-back" class="icon-btn hidden" aria-label="戻る">
+          <span class="material-icons-round">arrow_back</span>
+        </button>
+        <h1 id="top-bar-title" class="top-bar-title">Smart Memo</h1>
+      </div>
+      <div class="top-bar-right">
+        <button id="btn-search-toggle" class="icon-btn" aria-label="検索">
+          <span class="material-icons-round">search</span>
+        </button>
+        <button id="btn-layout-toggle" class="icon-btn" aria-label="レイアウト切替">
+          <span class="material-icons-round">grid_view</span>
+        </button>
+        <button id="btn-more" class="icon-btn" aria-label="その他">
+          <span class="material-icons-round">more_vert</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ===== SEARCH BAR ===== -->
+    <div id="search-bar" class="search-bar hidden">
+      <span class="material-icons-round search-icon">search</span>
+      <input type="text" id="search-input" class="search-input" placeholder="メモを検索…" autocomplete="off">
+      <button id="btn-search-close" class="icon-btn-sm" aria-label="検索を閉じる">
+        <span class="material-icons-round">close</span>
+      </button>
+    </div>
+
+    <!-- ===== FILTER CHIPS ===== -->
+    <div id="filter-chips" class="filter-chips">
+      <div class="chips-scroll">
+        <button class="chip active" data-filter="all">すべて</button>
+        <button class="chip" data-filter="uncategorized">未分類</button>
+        <button class="chip" data-filter="pinned">📌 ピン留め</button>
+        <button class="chip chip-divider"></button>
+        <button class="chip" data-filter="type-free">📝 フリー</button>
+        <button class="chip" data-filter="type-checklist">☑️ チェック</button>
+        <button class="chip" data-filter="type-bullet">📋 箇条書き</button>
+        <button class="chip" data-filter="type-photo">📷 フォト</button>
+        <button class="chip" data-filter="type-voice">🎤 ボイス</button>
+        <button class="chip" data-filter="type-idea">💡 アイデア</button>
+        <button class="chip" data-filter="type-meeting">🏢 会議</button>
+        <button class="chip" data-filter="type-markdown">⌨️ MD</button>
+        <button class="chip" data-filter="type-kanban">📊 カンバン</button>
+        <button class="chip" data-filter="type-bookmark">🔗 ブクマ</button>
+        <button class="chip" data-filter="type-mindmap">🧠 マップ</button>
+        <button class="chip" data-filter="type-journal">📔 日記</button>
+      </div>
+    </div>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main id="main-content" class="main-content">
+
+      <!-- == HOME VIEW == -->
+      <section id="view-home" class="view active">
+        <div id="memo-list" class="memo-list layout-card">
+          <!-- Memos rendered here -->
+        </div>
+        <div id="empty-state" class="empty-state hidden">
+          <span class="material-icons-round empty-icon">note_add</span>
+          <p class="empty-text">メモがありません</p>
+          <p class="empty-sub">＋ボタンで新しいメモを作成しましょう</p>
+        </div>
+      </section>
+
+      <!-- == EDITOR VIEW == -->
+      <section id="view-editor" class="view">
+        <div id="editor-container" class="editor-container">
+          <!-- Dynamically rendered by note-types.js -->
+        </div>
+      </section>
+
+      <!-- == CATEGORY VIEW == -->
+      <section id="view-categories" class="view">
+        <div id="category-list" class="category-list">
+          <!-- Categories rendered here -->
+        </div>
+      </section>
+
+      <!-- == SETTINGS VIEW == -->
+      <section id="view-settings" class="view">
+        <div class="settings-content">
+          <h2 class="settings-heading">設定</h2>
+          <div class="settings-group">
+            <div class="settings-item" id="setting-theme">
+              <span class="material-icons-round">dark_mode</span>
+              <span class="settings-label">ダークモード</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="theme-toggle" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="settings-item" id="setting-default-layout">
+              <span class="material-icons-round">view_comfy</span>
+              <span class="settings-label">デフォルトレイアウト</span>
+              <select id="default-layout-select" class="settings-select">
+                <option value="card">カード</option>
+                <option value="grid">グリッド</option>
+                <option value="list">リスト</option>
+              </select>
+            </div>
+          </div>
+          <div class="settings-group">
+            <div class="settings-item" id="setting-export">
+              <span class="material-icons-round">file_download</span>
+              <span class="settings-label">データエクスポート</span>
+              <span class="material-icons-round settings-arrow">chevron_right</span>
+            </div>
+            <div class="settings-item" id="setting-import">
+              <span class="material-icons-round">file_upload</span>
+              <span class="settings-label">データインポート</span>
+              <span class="material-icons-round settings-arrow">chevron_right</span>
+            </div>
+          </div>
+          <div class="settings-group">
+            <div class="settings-item" id="setting-trash">
+              <span class="material-icons-round">delete_outline</span>
+              <span class="settings-label">ゴミ箱</span>
+              <span id="trash-count" class="settings-badge">0</span>
+              <span class="material-icons-round settings-arrow">chevron_right</span>
+            </div>
+          </div>
+          <p class="settings-footer">Smart Memo v1.0</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- ===== FAB ===== -->
+    <button id="fab" class="fab" aria-label="新規メモ作成">
+      <span class="material-icons-round">add</span>
+    </button>
+
+    <!-- ===== BOTTOM NAV ===== -->
+    <nav id="bottom-nav" class="bottom-nav">
+      <button class="nav-item active" data-view="home">
+        <span class="material-icons-round">home</span>
+        <span class="nav-label">ホーム</span>
+      </button>
+      <button class="nav-item" data-view="categories">
+        <span class="material-icons-round">folder</span>
+        <span class="nav-label">カテゴリ</span>
+      </button>
+      <button class="nav-item" data-view="settings">
+        <span class="material-icons-round">settings</span>
+        <span class="nav-label">設定</span>
+      </button>
+    </nav>
+
+    <!-- ===== NOTE TYPE SELECTOR (Bottom Sheet) ===== -->
+    <div id="note-type-sheet" class="bottom-sheet">
+      <div class="sheet-overlay"></div>
+      <div class="sheet-content">
+        <div class="sheet-handle"></div>
+        <h3 class="sheet-title">ノートスタイルを選択</h3>
+        <div class="note-type-grid">
+          <button class="note-type-btn" data-type="free">
+            <span class="note-type-icon">📝</span>
+            <span class="note-type-name">フリーノート</span>
+          </button>
+          <button class="note-type-btn" data-type="checklist">
+            <span class="note-type-icon">☑️</span>
+            <span class="note-type-name">チェックリスト</span>
+          </button>
+          <button class="note-type-btn" data-type="bullet">
+            <span class="note-type-icon">📋</span>
+            <span class="note-type-name">箇条書き</span>
+          </button>
+          <button class="note-type-btn" data-type="photo">
+            <span class="note-type-icon">📷</span>
+            <span class="note-type-name">フォトメモ</span>
+          </button>
+          <button class="note-type-btn" data-type="voice">
+            <span class="note-type-icon">🎤</span>
+            <span class="note-type-name">ボイスメモ</span>
+          </button>
+          <button class="note-type-btn" data-type="idea">
+            <span class="note-type-icon">💡</span>
+            <span class="note-type-name">アイデア</span>
+          </button>
+          <button class="note-type-btn" data-type="meeting">
+            <span class="note-type-icon">🏢</span>
+            <span class="note-type-name">会議ノート</span>
+          </button>
+          <button class="note-type-btn" data-type="markdown">
+            <span class="note-type-icon">&lt;/&gt;</span>
+            <span class="note-type-name">マークダウン</span>
+          </button>
+          <button class="note-type-btn" data-type="kanban">
+            <span class="note-type-icon">📊</span>
+            <span class="note-type-name">カンバン</span>
+          </button>
+          <button class="note-type-btn" data-type="bookmark">
+            <span class="note-type-icon">🔗</span>
+            <span class="note-type-name">ブックマーク</span>
+          </button>
+          <button class="note-type-btn" data-type="mindmap">
+            <span class="note-type-icon">🧠</span>
+            <span class="note-type-name">マインドマップ</span>
+          </button>
+          <button class="note-type-btn" data-type="journal">
+            <span class="note-type-icon">📔</span>
+            <span class="note-type-name">日記</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== COLOR PICKER (Bottom Sheet) ===== -->
+    <div id="color-picker-sheet" class="bottom-sheet">
+      <div class="sheet-overlay"></div>
+      <div class="sheet-content sheet-content-sm">
+        <div class="sheet-handle"></div>
+        <h3 class="sheet-title">カラーを選択</h3>
+        <div class="color-picker-grid">
+          <button class="color-dot" data-color="none" style="background: var(--surface-2);" title="なし">
+            <span class="material-icons-round" style="font-size:16px;color:var(--text-secondary)">block</span>
+          </button>
+          <button class="color-dot" data-color="red" style="background: #ef5350;" title="赤"></button>
+          <button class="color-dot" data-color="orange" style="background: #ff9800;" title="オレンジ"></button>
+          <button class="color-dot" data-color="yellow" style="background: #ffee58;" title="黄"></button>
+          <button class="color-dot" data-color="green" style="background: #66bb6a;" title="緑"></button>
+          <button class="color-dot" data-color="blue" style="background: #42a5f5;" title="青"></button>
+          <button class="color-dot" data-color="purple" style="background: #ab47bc;" title="紫"></button>
+          <button class="color-dot" data-color="pink" style="background: #ec407a;" title="ピンク"></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== CATEGORY/TAG SHEET ===== -->
+    <div id="category-sheet" class="bottom-sheet">
+      <div class="sheet-overlay"></div>
+      <div class="sheet-content">
+        <div class="sheet-handle"></div>
+        <h3 class="sheet-title">カテゴリ・タグ</h3>
+        <div class="sheet-section">
+          <label class="sheet-label">カテゴリ</label>
+          <div id="category-select-list" class="category-select-list"></div>
+          <div class="add-category-row">
+            <input type="text" id="new-category-input" class="sheet-input" placeholder="新しいカテゴリ…">
+            <button id="btn-add-category" class="btn-accent-sm">追加</button>
+          </div>
+        </div>
+        <div class="sheet-section">
+          <label class="sheet-label">タグ</label>
+          <div id="tag-list" class="tag-list"></div>
+          <div class="add-category-row">
+            <input type="text" id="new-tag-input" class="sheet-input" placeholder="新しいタグ…">
+            <button id="btn-add-tag" class="btn-accent-sm">追加</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SORT/MORE MENU ===== -->
+    <div id="more-menu" class="dropdown-menu hidden">
+      <button class="menu-item" data-action="sort-updated">
+        <span class="material-icons-round">update</span>更新日順
+      </button>
+      <button class="menu-item" data-action="sort-created">
+        <span class="material-icons-round">schedule</span>作成日順
+      </button>
+      <button class="menu-item" data-action="sort-title">
+        <span class="material-icons-round">sort_by_alpha</span>タイトル順
+      </button>
+    </div>
+
+    <!-- ===== TOAST ===== -->
+    <div id="toast" class="toast hidden">
+      <span id="toast-message"></span>
+      <button id="toast-action" class="toast-action hidden"></button>
+    </div>
+
+  </div>
+
+  <!-- JS Modules -->
+  <script src="js/db.js"></script>
+  <script src="js/memo.js"></script>
+  <script src="js/image.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/note-types.js"></script>
+  <script src="js/category.js"></script>
+  <script src="js/search.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

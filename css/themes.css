@@ -1,0 +1,120 @@
+/* ========================================
+   THEMES - Dark / Light mode variables
+   ======================================== */
+
+:root {
+  /* Transitions */
+  --theme-transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* ---------- DARK THEME ---------- */
+[data-theme="dark"] {
+  --bg-primary: #0f0f1a;
+  --bg-secondary: #1a1a2e;
+  --bg-tertiary: #16213e;
+  --surface-1: #1e1e35;
+  --surface-2: #2a2a45;
+  --surface-3: #35355a;
+  --surface-glass: rgba(30, 30, 53, 0.75);
+
+  --text-primary: #e8e8f0;
+  --text-secondary: #a0a0b8;
+  --text-tertiary: #6e6e8a;
+  --text-inverse: #0f0f1a;
+
+  --accent: #7c5cfc;
+  --accent-hover: #9278ff;
+  --accent-soft: rgba(124, 92, 252, 0.15);
+  --accent-text: #b5a0ff;
+
+  --danger: #ef5350;
+  --danger-soft: rgba(239, 83, 80, 0.15);
+  --success: #66bb6a;
+  --success-soft: rgba(102, 187, 106, 0.15);
+  --warning: #ffa726;
+  --warning-soft: rgba(255, 167, 38, 0.15);
+
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px rgba(124, 92, 252, 0.2);
+
+  --overlay: rgba(0, 0, 0, 0.6);
+  --glass-blur: blur(20px);
+  --glass-bg: rgba(30, 30, 53, 0.85);
+
+  /* Note colors */
+  --note-red: rgba(239, 83, 80, 0.12);
+  --note-orange: rgba(255, 152, 0, 0.12);
+  --note-yellow: rgba(255, 238, 88, 0.12);
+  --note-green: rgba(102, 187, 106, 0.12);
+  --note-blue: rgba(66, 165, 245, 0.12);
+  --note-purple: rgba(171, 71, 188, 0.12);
+  --note-pink: rgba(236, 64, 122, 0.12);
+
+  --note-red-border: rgba(239, 83, 80, 0.3);
+  --note-orange-border: rgba(255, 152, 0, 0.3);
+  --note-yellow-border: rgba(255, 238, 88, 0.3);
+  --note-green-border: rgba(102, 187, 106, 0.3);
+  --note-blue-border: rgba(66, 165, 245, 0.3);
+  --note-purple-border: rgba(171, 71, 188, 0.3);
+  --note-pink-border: rgba(236, 64, 122, 0.3);
+}
+
+/* ---------- LIGHT THEME ---------- */
+[data-theme="light"] {
+  --bg-primary: #f5f5fa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #eeeef5;
+  --surface-1: #ffffff;
+  --surface-2: #f0f0f8;
+  --surface-3: #e5e5f0;
+  --surface-glass: rgba(255, 255, 255, 0.75);
+
+  --text-primary: #1a1a2e;
+  --text-secondary: #5a5a75;
+  --text-tertiary: #9090a8;
+  --text-inverse: #ffffff;
+
+  --accent: #6c4ce6;
+  --accent-hover: #7c5cfc;
+  --accent-soft: rgba(108, 76, 230, 0.1);
+  --accent-text: #6c4ce6;
+
+  --danger: #d32f2f;
+  --danger-soft: rgba(211, 47, 47, 0.1);
+  --success: #2e7d32;
+  --success-soft: rgba(46, 125, 50, 0.1);
+  --warning: #ed6c02;
+  --warning-soft: rgba(237, 108, 2, 0.1);
+
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.15);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 0 20px rgba(108, 76, 230, 0.15);
+
+  --overlay: rgba(0, 0, 0, 0.4);
+  --glass-blur: blur(20px);
+  --glass-bg: rgba(255, 255, 255, 0.85);
+
+  /* Note colors */
+  --note-red: rgba(239, 83, 80, 0.08);
+  --note-orange: rgba(255, 152, 0, 0.08);
+  --note-yellow: rgba(255, 238, 88, 0.1);
+  --note-green: rgba(102, 187, 106, 0.08);
+  --note-blue: rgba(66, 165, 245, 0.08);
+  --note-purple: rgba(171, 71, 188, 0.08);
+  --note-pink: rgba(236, 64, 122, 0.08);
+
+  --note-red-border: rgba(239, 83, 80, 0.25);
+  --note-orange-border: rgba(255, 152, 0, 0.25);
+  --note-yellow-border: rgba(255, 238, 88, 0.3);
+  --note-green-border: rgba(102, 187, 106, 0.25);
+  --note-blue-border: rgba(66, 165, 245, 0.25);
+  --note-purple-border: rgba(171, 71, 188, 0.25);
+  --note-pink-border: rgba(236, 64, 122, 0.25);
+}
