@@ -4,6 +4,8 @@
 
 const UI = (() => {
   let currentLayout = 'card';
+  let _renderState = null;
+  const BATCH_SIZE = 20;
 
   function setLayout(layout) {
     currentLayout = layout;
@@ -22,6 +24,12 @@ const UI = (() => {
   }
 
   async function renderMemoList(memos) {
+    // Cancel any in-progress render
+    if (_renderState) {
+      _renderState.active = false;
+      if (_renderState.observer) _renderState.observer.disconnect();
+    }
+
     const list = document.getElementById('memo-list');
     const empty = document.getElementById('empty-state');
     list.innerHTML = '';
@@ -38,9 +46,42 @@ const UI = (() => {
     const allTags = await CategoryManager.getAllTags();
     const tagMap = new Map(allTags.map(t => [t.id, t.name]));
 
-    for (const memo of memos) {
-      const card = await createMemoCard(memo, tagMap);
+    const state = { memos, offset: 0, tagMap, observer: null, active: true };
+    _renderState = state;
+    await _renderBatch(state);
+  }
+
+  async function _renderBatch(state) {
+    if (!state.active) return;
+    const list = document.getElementById('memo-list');
+    const batch = state.memos.slice(state.offset, state.offset + BATCH_SIZE);
+
+    for (const memo of batch) {
+      if (!state.active) return;
+      const card = await createMemoCard(memo, state.tagMap);
+      if (!state.active) return;
       list.appendChild(card);
+    }
+    state.offset += batch.length;
+
+    if (state.active && state.offset < state.memos.length) {
+      const sentinel = document.createElement('div');
+      sentinel.className = 'scroll-sentinel';
+      list.appendChild(sentinel);
+
+      const obs = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && state.active) {
+          obs.disconnect();
+          state.observer = null;
+          sentinel.remove();
+          _renderBatch(state);
+        }
+      }, {
+        root: document.querySelector('.main-content'),
+        rootMargin: '200px'
+      });
+      obs.observe(sentinel);
+      state.observer = obs;
     }
   }
 

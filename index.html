@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/note-types.css">
   <link rel="stylesheet" href="css/memo-editor.css">
+  <link rel="stylesheet" href="css/print.css">
 </head>
 <body data-theme="dark">
 
@@ -137,6 +138,14 @@
               <span class="settings-label">ダークモード</span>
               <label class="toggle-switch">
                 <input type="checkbox" id="theme-toggle" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="settings-item" id="setting-reminders">
+              <span class="material-icons-round">notifications</span>
+              <span class="settings-label">期限リマインダー</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="reminder-toggle">
                 <span class="toggle-slider"></span>
               </label>
             </div>
@@ -312,6 +321,10 @@
       <button class="menu-item" data-action="sort-title">
         <span class="material-icons-round">sort_by_alpha</span>タイトル順
       </button>
+      <div class="menu-divider"></div>
+      <button class="menu-item" data-action="print-pdf">
+        <span class="material-icons-round">picture_as_pdf</span>PDF出力
+      </button>
     </div>
 
     <!-- ===== TOAST ===== -->
@@ -324,6 +337,7 @@
 
   <!-- JS Modules -->
   <script src="js/db.js"></script>
+  <script src="js/reminder.js"></script>
   <script src="js/memo.js"></script>
   <script src="js/image.js"></script>
   <script src="js/audio.js"></script>

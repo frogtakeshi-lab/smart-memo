@@ -1216,6 +1216,7 @@ const NoteTypes = (() => {
       { icon: 'image', action: 'attach-image', title: '画像添付' },
       { divider: true },
       { icon: 'push_pin', action: 'pin', title: 'ピン留め', active: memo.pinned },
+      { icon: 'print', action: 'print', title: 'PDF出力' },
       { icon: 'delete_outline', action: 'delete', title: '削除' }
     ];
 
@@ -1266,6 +1267,9 @@ const NoteTypes = (() => {
       case 'pin':
         memo.pinned = !memo.pinned;
         renderToolbar(memo);
+        break;
+      case 'print':
+        window.print();
         break;
       case 'delete':
         if (confirm('このメモを削除しますか？')) {

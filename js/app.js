@@ -22,6 +22,7 @@ const App = (() => {
       await refreshList();
       setupEventListeners();
       hideSplash();
+      ReminderManager.init();
     } catch (err) {
       console.error('App init error:', err);
     }
@@ -35,6 +36,9 @@ const App = (() => {
     }
     const layout = await SmartMemoDB.getSetting('layout');
     if (layout) UI.setLayout(layout);
+
+    const remindersEnabled = await ReminderManager.isEnabled();
+    document.getElementById('reminder-toggle').checked = !!remindersEnabled;
   }
 
   function hideSplash() {
@@ -128,6 +132,8 @@ const App = (() => {
           if (currentSort === 'updated') currentSort = 'updatedAt';
           if (currentSort === 'created') currentSort = 'createdAt';
           refreshList();
+        } else if (action === 'print-pdf') {
+          window.print();
         }
         document.getElementById('more-menu').classList.add('hidden');
       };
@@ -154,6 +160,22 @@ const App = (() => {
       const theme = e.target.checked ? 'dark' : 'light';
       document.body.dataset.theme = theme;
       SmartMemoDB.setSetting('theme', theme);
+    };
+
+    // Reminder toggle
+    document.getElementById('reminder-toggle').onchange = async (e) => {
+      if (e.target.checked) {
+        const granted = await ReminderManager.enable();
+        if (!granted) {
+          e.target.checked = false;
+          UI.showToast('通知の許可が必要です。ブラウザの設定をご確認ください');
+        } else {
+          UI.showToast('期限リマインダーを有効にしました');
+        }
+      } else {
+        await ReminderManager.disable();
+        UI.showToast('期限リマインダーを無効にしました');
+      }
     };
 
     // Default layout select
