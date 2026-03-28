@@ -6,8 +6,10 @@ const App = (() => {
   let currentView = 'home';
   let currentMemo = null;
   let currentFilter = 'all';
+  let currentFilterValue = null;
   let currentSort = 'updatedAt';
   let searchQuery = '';
+  let autoSaveTimer = null;
 
   /**
    * Initialize the app
@@ -73,7 +75,13 @@ const App = (() => {
 
     // Back button
     document.getElementById('btn-back').onclick = () => {
-      saveAndBack();
+      if (currentView === 'editor') {
+        saveAndBack();
+      } else {
+        switchView('settings');
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.querySelector('.nav-item[data-view="settings"]').classList.add('active');
+      }
     };
 
     // Search
@@ -134,6 +142,7 @@ const App = (() => {
     document.querySelectorAll('.chip[data-filter]').forEach(chip => {
       chip.onclick = () => {
         currentFilter = chip.dataset.filter;
+        currentFilterValue = null;
         document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
         chip.classList.add('active');
         refreshList();
@@ -211,19 +220,8 @@ const App = (() => {
     };
 
     // Trash
-    document.getElementById('setting-trash').onclick = async () => {
-      const trash = await MemoManager.getTrash();
-      if (trash.length === 0) {
-        UI.showToast('ゴミ箱は空です');
-        return;
-      }
-      if (confirm(`${trash.length}件のメモがゴミ箱にあります。全て完全に削除しますか？`)) {
-        for (const memo of trash) {
-          await MemoManager.permanentDelete(memo.id);
-        }
-        updateTrashCount();
-        UI.showToast('ゴミ箱を空にしました');
-      }
+    document.getElementById('setting-trash').onclick = () => {
+      switchView('trash');
     };
   }
 
@@ -282,6 +280,16 @@ const App = (() => {
       moreBtn.classList.add('hidden');
       removeToolbar();
       updateTrashCount();
+    } else if (view === 'trash') {
+      fab.classList.add('hidden');
+      filterChips.classList.add('hidden');
+      backBtn.classList.remove('hidden');
+      title.textContent = 'ゴミ箱';
+      searchBtn.classList.add('hidden');
+      layoutBtn.classList.add('hidden');
+      moreBtn.classList.add('hidden');
+      removeToolbar();
+      renderTrashView();
     }
 
     // Scroll to top
@@ -293,7 +301,7 @@ const App = (() => {
    */
   async function refreshList() {
     let memos = await MemoManager.getAll();
-    memos = MemoManager.filter(memos, currentFilter);
+    memos = MemoManager.filter(memos, currentFilter, currentFilterValue);
     if (searchQuery) {
       memos = SearchManager.search(memos, searchQuery);
     }
@@ -321,16 +329,34 @@ const App = (() => {
     openEditorView();
   }
 
+  function startAutoSave() {
+    stopAutoSave();
+    autoSaveTimer = setInterval(async () => {
+      if (currentMemo) {
+        await MemoManager.save(currentMemo);
+      }
+    }, 3000);
+  }
+
+  function stopAutoSave() {
+    if (autoSaveTimer) {
+      clearInterval(autoSaveTimer);
+      autoSaveTimer = null;
+    }
+  }
+
   function openEditorView() {
     switchView('editor');
     const container = document.getElementById('editor-container');
     NoteTypes.renderEditor(container, currentMemo);
+    startAutoSave();
   }
 
   /**
    * Save current memo and go back
    */
   async function saveAndBack() {
+    stopAutoSave();
     if (currentMemo) {
       // Auto-set title from content if empty
       if (!currentMemo.title) {
@@ -354,6 +380,7 @@ const App = (() => {
    * Delete memo
    */
   async function deleteMemo(id) {
+    stopAutoSave();
     await MemoManager.softDelete(id);
     currentMemo = null;
     switchView('home');
@@ -469,7 +496,11 @@ const App = (() => {
       const count = allMemos.filter(m => m.category === cat.id).length;
       const item = createCategoryItem(cat.name, count, cat.id, () => {
         currentFilter = 'category';
+        currentFilterValue = cat.id;
         switchView('home');
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.querySelector('.nav-item[data-view="home"]').classList.add('active');
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
       });
       container.appendChild(item);
     }
@@ -513,6 +544,83 @@ const App = (() => {
   function removeToolbar() {
     const toolbar = document.querySelector('.editor-toolbar');
     if (toolbar) toolbar.remove();
+  }
+
+  async function renderTrashView() {
+    const list = document.getElementById('trash-list');
+    const emptyState = document.getElementById('trash-empty-state');
+    const footer = document.getElementById('trash-footer');
+    list.innerHTML = '';
+
+    const trash = await MemoManager.getTrash();
+    trash.sort((a, b) => new Date(b.deletedAt) - new Date(a.deletedAt));
+
+    if (trash.length === 0) {
+      emptyState.classList.remove('hidden');
+      footer.classList.add('hidden');
+      return;
+    }
+
+    emptyState.classList.add('hidden');
+    footer.classList.remove('hidden');
+
+    for (const memo of trash) {
+      const typeInfo = MemoManager.getTypeInfo(memo.type);
+      const preview = MemoManager.getPreview(memo);
+      const deletedDate = MemoManager.formatDate(memo.deletedAt);
+      const title = memo.title || typeInfo.name;
+
+      const item = document.createElement('div');
+      item.className = 'trash-card';
+      item.innerHTML = `
+        <div class="trash-card-info">
+          <div class="trash-card-header">
+            <span class="memo-type-icon"></span>
+            <span class="memo-title"></span>
+          </div>
+          <p class="memo-preview"></p>
+          <span class="trash-card-date"></span>
+        </div>
+        <div class="trash-card-actions">
+          <button class="btn-restore" aria-label="復元">
+            <span class="material-icons-round">restore</span>
+          </button>
+          <button class="btn-perm-delete" aria-label="完全削除">
+            <span class="material-icons-round">delete_forever</span>
+          </button>
+        </div>
+      `;
+      item.querySelector('.memo-type-icon').textContent = typeInfo.icon;
+      item.querySelector('.memo-title').textContent = title;
+      item.querySelector('.memo-preview').textContent = preview;
+      item.querySelector('.trash-card-date').textContent = `削除: ${deletedDate}`;
+
+      item.querySelector('.btn-restore').onclick = async () => {
+        await MemoManager.restore(memo.id);
+        updateTrashCount();
+        renderTrashView();
+        UI.showToast('メモを復元しました');
+      };
+      item.querySelector('.btn-perm-delete').onclick = async () => {
+        await MemoManager.permanentDelete(memo.id);
+        updateTrashCount();
+        renderTrashView();
+        UI.showToast('完全に削除しました');
+      };
+
+      list.appendChild(item);
+    }
+
+    document.getElementById('btn-empty-trash').onclick = async () => {
+      if (confirm(`${trash.length}件のメモを完全に削除しますか？`)) {
+        for (const memo of trash) {
+          await MemoManager.permanentDelete(memo.id);
+        }
+        updateTrashCount();
+        renderTrashView();
+        UI.showToast('ゴミ箱を空にしました');
+      }
+    };
   }
 
   async function updateTrashCount() {

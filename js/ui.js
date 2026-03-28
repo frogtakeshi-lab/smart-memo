@@ -35,13 +35,16 @@ const UI = (() => {
     empty.classList.add('hidden');
     list.style.display = '';
 
+    const allTags = await CategoryManager.getAllTags();
+    const tagMap = new Map(allTags.map(t => [t.id, t.name]));
+
     for (const memo of memos) {
-      const card = await createMemoCard(memo);
+      const card = await createMemoCard(memo, tagMap);
       list.appendChild(card);
     }
   }
 
-  async function createMemoCard(memo) {
+  async function createMemoCard(memo, tagMap = new Map()) {
     const card = document.createElement('div');
     card.className = 'memo-card';
     card.dataset.id = memo.id;
@@ -82,13 +85,12 @@ const UI = (() => {
 
     // Tags
     if (memo.tags && memo.tags.length > 0) {
-      // We'd need to resolve tag names - simplified
       const tagsDiv = document.createElement('div');
       tagsDiv.className = 'memo-tags';
-      memo.tags.forEach(t => {
+      memo.tags.forEach(tagId => {
         const tagEl = document.createElement('span');
         tagEl.className = 'memo-tag';
-        tagEl.textContent = `#${t}`;
+        tagEl.textContent = `#${tagMap.get(tagId) || tagId}`;
         tagsDiv.appendChild(tagEl);
       });
       card.insertBefore(tagsDiv, card.querySelector('.memo-card-footer'));
