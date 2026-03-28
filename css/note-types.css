@@ -128,6 +128,8 @@
 .checklist-item.completed .checklist-text { text-decoration: line-through; }
 .checklist-item.dragging { opacity: 0.3; }
 .checklist-item.drag-over { border-top: 2px solid var(--accent); }
+.checklist-item.touch-drag-over { background: var(--accent-soft); border-top: 2px solid var(--accent); }
+.checklist-drag { touch-action: none; }
 
 .checklist-check {
   width: 22px;
@@ -508,7 +510,8 @@
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
-.voice-text-supplement {
+.voice-text-supplement,
+.photo-note-textarea {
   width: 100%;
   min-height: 80px;
   border: 1px solid var(--border);
@@ -738,16 +741,50 @@
   flex: 1;
 }
 .kanban-card {
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: var(--surface-2);
   border-radius: 10px;
   font-size: 0.82rem;
   color: var(--text-primary);
-  cursor: grab;
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: box-shadow 0.15s;
   border: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
 }
-.kanban-card:active { transform: scale(0.97); box-shadow: var(--shadow-md); }
+.kanban-card-text {
+  flex: 1;
+  outline: none;
+  min-height: 1.2em;
+  cursor: text;
+  line-height: 1.5;
+}
+.kanban-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
+.kanban-card:hover .kanban-card-actions { opacity: 1; }
+.kanban-move-btn,
+.kanban-delete-btn {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--text-tertiary);
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.kanban-move-btn:hover { background: var(--accent-soft); color: var(--accent); }
+.kanban-delete-btn:hover { background: var(--danger-soft); color: var(--danger); }
 .kanban-add-btn {
   width: 100%;
   padding: 8px;

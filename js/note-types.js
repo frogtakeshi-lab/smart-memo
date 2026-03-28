@@ -98,7 +98,40 @@ const NoteTypes = (() => {
     itemsDiv.className = 'checklist-items';
     div.appendChild(itemsDiv);
 
+    // Touch drag: move + end handlers on the container (registered once)
+    itemsDiv.addEventListener('touchmove', (e) => {
+      if (touchDragSrcIdx === null) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      itemsDiv.querySelectorAll('.checklist-item').forEach(el => {
+        const rect = el.getBoundingClientRect();
+        el.classList.toggle('touch-drag-over',
+          touch.clientY >= rect.top && touch.clientY <= rect.bottom);
+      });
+    }, { passive: false });
+
+    itemsDiv.addEventListener('touchend', (e) => {
+      if (touchDragSrcIdx === null) return;
+      const touch = e.changedTouches[0];
+      let targetRealIdx = null;
+      itemsDiv.querySelectorAll('.checklist-item').forEach(el => {
+        el.classList.remove('touch-drag-over', 'dragging');
+        const rect = el.getBoundingClientRect();
+        if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+          targetRealIdx = parseInt(el.dataset.realIdx);
+        }
+      });
+      if (targetRealIdx !== null && targetRealIdx !== touchDragSrcIdx) {
+        const [moved] = memo.content.items.splice(touchDragSrcIdx, 1);
+        memo.content.items.splice(targetRealIdx, 0, moved);
+        renderItems();
+        updateProgress();
+      }
+      touchDragSrcIdx = null;
+    }, { passive: true });
+
     let dragSrcIdx = null;
+    let touchDragSrcIdx = null;
 
     function getOrderedItems() {
       const items = memo.content.items || [];
@@ -251,6 +284,14 @@ const NoteTypes = (() => {
           row.classList.remove('dragging');
           dragSrcIdx = null;
         });
+
+        // Touch drag: start on the drag handle only
+        row.querySelector('.checklist-drag').addEventListener('touchstart', (e) => {
+          e.stopPropagation();
+          touchDragSrcIdx = realIdx;
+          row.classList.add('dragging');
+          if (navigator.vibrate) navigator.vibrate(30);
+        }, { passive: true });
 
         itemsDiv.appendChild(row);
         autoResize(textarea);
@@ -490,7 +531,7 @@ const NoteTypes = (() => {
 
     // Note text
     const noteArea = document.createElement('textarea');
-    noteArea.className = 'voice-text-supplement';
+    noteArea.className = 'photo-note-textarea';
     noteArea.placeholder = 'メモ…';
     noteArea.value = memo.content.note || '';
     noteArea.oninput = () => { memo.content.note = noteArea.value; };
@@ -520,6 +561,10 @@ const NoteTypes = (() => {
         recordBtn.classList.remove('recording');
         recordBtn.innerHTML = '<span class="material-icons-round" style="font-size:36px">mic</span>';
         if (blob) {
+          // Delete previous recording to avoid orphaned data
+          if (memo.content.audioId) {
+            await AudioManager.deleteAudio(memo.content.audioId);
+          }
           const duration = (Date.now() - startTime) / 1000;
           const audioId = await AudioManager.saveAudio(blob, duration);
           memo.content.audioId = audioId;
@@ -774,19 +819,54 @@ const NoteTypes = (() => {
         const cardsDiv = document.createElement('div');
         cardsDiv.className = 'kanban-cards';
         
+        const colIdx = memo.content.columns.indexOf(col);
         col.cards.forEach((card, ci) => {
           const cardEl = document.createElement('div');
           cardEl.className = 'kanban-card';
-          cardEl.textContent = card.text;
-          cardEl.contentEditable = 'true';
-          cardEl.oninput = () => { card.text = cardEl.textContent; };
-          cardEl.onkeydown = (e) => {
-            if (e.key === 'Backspace' && !cardEl.textContent) {
+
+          const cardText = document.createElement('div');
+          cardText.className = 'kanban-card-text';
+          cardText.contentEditable = 'true';
+          cardText.textContent = card.text;
+          cardText.oninput = () => { card.text = cardText.textContent; };
+          cardText.onkeydown = (e) => {
+            if (e.key === 'Backspace' && !cardText.textContent) {
               e.preventDefault();
               col.cards.splice(ci, 1);
               render();
             }
           };
+          cardEl.appendChild(cardText);
+
+          const cardActions = document.createElement('div');
+          cardActions.className = 'kanban-card-actions';
+
+          const nextCol = memo.content.columns[colIdx + 1];
+          if (nextCol) {
+            const moveBtn = document.createElement('button');
+            moveBtn.className = 'kanban-move-btn';
+            moveBtn.title = `→ ${nextCol.title}`;
+            moveBtn.innerHTML = '<span class="material-icons-round" style="font-size:14px">arrow_forward</span>';
+            moveBtn.onclick = (e) => {
+              e.stopPropagation();
+              col.cards.splice(ci, 1);
+              nextCol.cards.push(card);
+              render();
+            };
+            cardActions.appendChild(moveBtn);
+          }
+
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'kanban-delete-btn';
+          deleteBtn.innerHTML = '<span class="material-icons-round" style="font-size:14px">close</span>';
+          deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            col.cards.splice(ci, 1);
+            render();
+          };
+          cardActions.appendChild(deleteBtn);
+
+          cardEl.appendChild(cardActions);
           cardsDiv.appendChild(cardEl);
         });
 
@@ -841,7 +921,7 @@ const NoteTypes = (() => {
         <div class="bookmark-preview-info">
           <input class="bookmark-preview-title" style="width:100%;border:none;background:transparent;color:var(--text-primary);font-size:0.9rem;font-weight:600;outline:none;font-family:inherit" placeholder="タイトル" value="${memo.content.title || ''}">
           <textarea class="bookmark-preview-desc" style="width:100%;border:none;background:transparent;color:var(--text-secondary);font-size:0.78rem;outline:none;resize:none;font-family:inherit" rows="2" placeholder="説明">${memo.content.description || ''}</textarea>
-          <a class="bookmark-preview-url" href="${memo.content.url}" target="_blank">${memo.content.url}</a>
+          <a class="bookmark-preview-url" href="${memo.content.url}" target="_blank" rel="noopener noreferrer">${memo.content.url}</a>
         </div>
       </div>
     `;
@@ -955,7 +1035,7 @@ const NoteTypes = (() => {
         } else {
           const midX = (rootX + child._x) / 2;
           const midY = (rootY + child._y) / 2;
-          ctx.quadraticCurveTo(midX + (Math.random()-0.5)*10, midY + (Math.random()-0.5)*10, child._x, child._y);
+          ctx.quadraticCurveTo(midX, midY, child._x, child._y);
         }
         ctx.stroke();
       });
@@ -1161,9 +1241,9 @@ const NoteTypes = (() => {
     // Update layout button label
     controls.querySelector('#mm-layout').innerHTML = `<span class="material-icons-round" style="font-size:18px">account_tree</span>${LAYOUT_LABELS[layoutMode]}`;
 
-    // Initial draw
+    // Initial draw — use ResizeObserver instead of window resize (avoids listener leak)
     setTimeout(drawMap, 100);
-    window.addEventListener('resize', drawMap);
+    new ResizeObserver(drawMap).observe(container);
   }
 
   // ===== JOURNAL =====
@@ -1376,10 +1456,16 @@ const NoteTypes = (() => {
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
       .replace(/`([^`]+)`/g, '<code>$1</code>')
       .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
-      .replace(/^\- (.+)$/gm, '<li>$1</li>')
-      .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
-      .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank">$1</a>')
-      .replace(/\n/g, '<br>');
+      .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    // Wrap consecutive `- ` lines in <ul>
+    html = html.replace(/((?:^- .+(?:\n|$))+)/gm, (block) =>
+      '<ul>' + block.replace(/^- (.+)$/gm, '<li>$1</li>') + '</ul>'
+    );
+    // Wrap consecutive `N. ` lines in <ol>
+    html = html.replace(/((?:^\d+\. .+(?:\n|$))+)/gm, (block) =>
+      '<ol>' + block.replace(/^\d+\. (.+)$/gm, '<li>$1</li>') + '</ol>'
+    );
+    html = html.replace(/\n/g, '<br>');
     return html;
   }
 
