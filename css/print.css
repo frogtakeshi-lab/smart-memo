@@ -1,0 +1,88 @@
+/* ========================================
+   PRINT.CSS - PDF / Print styles
+   ======================================== */
+
+@media print {
+  /* ---- Hide UI chrome ---- */
+  #splash-screen,
+  #top-bar,
+  #search-bar,
+  #filter-chips,
+  #fab,
+  #bottom-nav,
+  .bottom-sheet,
+  #more-menu,
+  #toast,
+  .editor-toolbar,
+  .editor-meta,
+  .checklist-actions,
+  .cl-more-btn,
+  .checklist-drag,
+  .swipe-action,
+  .trash-footer { display: none !important; }
+
+  /* ---- Unfix layout ---- */
+  html, body {
+    overflow: visible !important;
+    height: auto !important;
+    background: white !important;
+    color: black !important;
+  }
+  .app {
+    max-width: 100% !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+  .main-content {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* ---- Show active view only ---- */
+  .view { display: none !important; }
+  .view.active { display: block !important; }
+
+  /* ---- Memo list ---- */
+  .memo-list.layout-card,
+  .memo-list.layout-list { gap: 10px; }
+  .memo-list.layout-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .memo-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #ccc !important;
+    background: white !important;
+    box-shadow: none !important;
+  }
+  .memo-title { color: black !important; }
+  .memo-preview { color: #444 !important; }
+  .memo-date { color: #888 !important; }
+
+  /* ---- Editor ---- */
+  .editor-title {
+    border-bottom: 1px solid #ccc;
+    color: black !important;
+  }
+  .rich-text,
+  .editor-idea textarea,
+  .editor-free {
+    color: black !important;
+  }
+
+  /* Checklist */
+  .checklist-item { break-inside: avoid; }
+  .checklist-text { color: black !important; }
+  .checklist-item.completed .checklist-text { color: #888 !important; text-decoration: line-through; }
+
+  /* Markdown */
+  .md-preview { color: black !important; }
+
+  /* Meeting */
+  .meeting-field-value { color: black !important; }
+
+  /* Force color printing for note card backgrounds */
+  .memo-card[data-color] {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

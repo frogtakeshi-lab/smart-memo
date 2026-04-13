@@ -4,6 +4,8 @@
 
 const UI = (() => {
   let currentLayout = 'card';
+  let _renderState = null;
+  const BATCH_SIZE = 20;
 
   function setLayout(layout) {
     currentLayout = layout;
@@ -22,6 +24,12 @@ const UI = (() => {
   }
 
   async function renderMemoList(memos) {
+    // Cancel any in-progress render
+    if (_renderState) {
+      _renderState.active = false;
+      if (_renderState.observer) _renderState.observer.disconnect();
+    }
+
     const list = document.getElementById('memo-list');
     const empty = document.getElementById('empty-state');
     list.innerHTML = '';
@@ -35,13 +43,49 @@ const UI = (() => {
     empty.classList.add('hidden');
     list.style.display = '';
 
-    for (const memo of memos) {
-      const card = await createMemoCard(memo);
+    const allTags = await CategoryManager.getAllTags();
+    const tagMap = new Map(allTags.map(t => [t.id, t.name]));
+
+    const state = { memos, offset: 0, tagMap, observer: null, active: true };
+    _renderState = state;
+    await _renderBatch(state);
+  }
+
+  async function _renderBatch(state) {
+    if (!state.active) return;
+    const list = document.getElementById('memo-list');
+    const batch = state.memos.slice(state.offset, state.offset + BATCH_SIZE);
+
+    for (const memo of batch) {
+      if (!state.active) return;
+      const card = await createMemoCard(memo, state.tagMap);
+      if (!state.active) return;
       list.appendChild(card);
+    }
+    state.offset += batch.length;
+
+    if (state.active && state.offset < state.memos.length) {
+      const sentinel = document.createElement('div');
+      sentinel.className = 'scroll-sentinel';
+      list.appendChild(sentinel);
+
+      const obs = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && state.active) {
+          obs.disconnect();
+          state.observer = null;
+          sentinel.remove();
+          _renderBatch(state);
+        }
+      }, {
+        root: document.querySelector('.main-content'),
+        rootMargin: '200px'
+      });
+      obs.observe(sentinel);
+      state.observer = obs;
     }
   }
 
-  async function createMemoCard(memo) {
+  async function createMemoCard(memo, tagMap = new Map()) {
     const card = document.createElement('div');
     card.className = 'memo-card';
     card.dataset.id = memo.id;
@@ -82,13 +126,12 @@ const UI = (() => {
 
     // Tags
     if (memo.tags && memo.tags.length > 0) {
-      // We'd need to resolve tag names - simplified
       const tagsDiv = document.createElement('div');
       tagsDiv.className = 'memo-tags';
-      memo.tags.forEach(t => {
+      memo.tags.forEach(tagId => {
         const tagEl = document.createElement('span');
         tagEl.className = 'memo-tag';
-        tagEl.textContent = `#${t}`;
+        tagEl.textContent = `#${tagMap.get(tagId) || tagId}`;
         tagsDiv.appendChild(tagEl);
       });
       card.insertBefore(tagsDiv, card.querySelector('.memo-card-footer'));

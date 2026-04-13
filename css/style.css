@@ -665,6 +665,7 @@ body {
 }
 .menu-item:hover { background: var(--surface-2); }
 .menu-item .material-icons-round { font-size: 20px; color: var(--text-secondary); }
+.menu-divider { height: 1px; background: var(--border); margin: 4px 8px; }
 @keyframes menuFade {
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -797,6 +798,81 @@ body {
 
 /* ---------- UTILITIES ---------- */
 .hidden { display: none !important; }
+
+/* Virtual scroll sentinel */
+.scroll-sentinel { height: 1px; width: 100%; }
+
+/* ---------- TRASH VIEW ---------- */
+.trash-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.trash-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface-1);
+  border-radius: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+}
+.trash-card-info {
+  flex: 1;
+  min-width: 0;
+}
+.trash-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.trash-card-date {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+.trash-card-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.btn-restore,
+.btn-perm-delete {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, transform 0.15s;
+}
+.btn-restore { background: var(--success-soft); color: var(--success); }
+.btn-restore:active { transform: scale(0.9); }
+.btn-perm-delete { background: var(--danger-soft); color: var(--danger); }
+.btn-perm-delete:active { transform: scale(0.9); }
+.trash-footer { padding: 16px 0 8px; }
+.btn-danger-full {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 14px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+.btn-danger-full:active {
+  background: var(--danger);
+  color: white;
+  transform: scale(0.98);
+}
 
 /* Swipe action background */
 .swipe-action {
